@@ -1,0 +1,161 @@
+<!doctype html>
+<head>
+<title>Game Of Life</title>
+<script>
+gol = {
+
+	board: undefined,
+	grid_w: 100,
+	grid_h: 100,
+	live_blocks: [],
+	tile_size: 5,
+	turn_delay: 100,
+	running: false,
+
+	draw_tile: function(ctx, x, y, sz) {
+		ctx.fillStyle = "rgba(255, 0, 0, 1)";
+		ctx.fillRect(x*sz, y*sz, sz, sz);
+	},
+
+	draw_grid: function() {
+		var sz = this.tile_size,
+		    ctx = this.board;
+		ctx.clearRect(0,0,this.grid_h*sz,this.grid_w*sz);
+		for (var i=0; i<this.live_blocks.length;i++) {
+			var coods = this.live_blocks[i].split(',');
+			this.draw_tile(ctx, parseInt(coods[0]), parseInt(coods[1]), sz);
+		}
+	},
+
+
+	turn: function() {
+		this.calculate_live_blocks();
+		this.draw_grid();
+	},
+
+	calculate_live_blocks: function() {
+		// get live blocks details
+		// create a list of live blocks that need killing
+		var blocks_to_live_on = [];
+		var blocks_to_come_alive = [];
+		for (var i=0; i<this.live_blocks.length;i++) {
+			var block = this.live_blocks[i];
+			var inspect = this.get_neighbours_info(block);
+			/*
+			a live cell with zero or one live neighbours will die.
+			a live cell with two or three live neighbours will remain alive
+			a live cell with four or more live neighbours will die. 
+			*/
+			// create a list of dead blocks that need to come alive
+			// remove blocks to be klled from this.live_blocks
+			var live_ns = inspect['live_neighbours'].length;
+			if ((live_ns == 2) || (live_ns == 3)) {
+				blocks_to_live_on.push(block);
+			}
+			// collect the neighbouring dead blocks as we go
+			var deads = inspect['dead_neighbours'];
+			for (var x=0; x<deads.length;x++) {
+				if (blocks_to_come_alive.indexOf(deads[x]) == -1) {
+					var block = deads[x];
+					var inspect = this.get_neighbours_info(block);	
+					// a dead cell with exactly three live neighbours becomes a live cell
+					if (inspect['live_neighbours'].length == 3) {
+						blocks_to_come_alive.push(block)
+					}
+				}
+			}
+		}
+		// update the internal store
+		this.live_blocks = blocks_to_live_on.concat(blocks_to_come_alive);
+	},
+
+	get_neighbours_info: function(coods) {
+		coods = coods.split(',')
+		var live_neighbours = [];
+		var dead_neighbours = [];
+		for (var x=-1; x<2; x++) {
+			for (var y=-1; y<2; y++) {
+				if (x || y) {
+					var cood = (parseInt(coods[0])+x) + ',' + (parseInt(coods[1])+y);
+					if (this.live_blocks.indexOf(cood) > -1) {
+						live_neighbours.push(cood);
+					}
+					else {
+						dead_neighbours.push(cood);
+					}
+				}
+			}
+		}
+		return {
+			'live_neighbours': live_neighbours,
+			'dead_neighbours': dead_neighbours
+		}
+	},
+
+	init_board: function() {
+		var board = document.getElementById('canvas');
+		sz = this.tile_size;
+		board.setAttribute('height', this.grid_h*sz);
+		board.setAttribute('width', this.grid_w*sz);
+		this.board = board.getContext('2d');
+	},
+
+	tick: function() {
+		var that = this;
+		clearTimeout(this.timeout);
+		if (this.running) {
+			this.timeout = setTimeout(function() {
+				that.tick();
+			}, this.turn_delay);
+		}
+		this.turn();
+	},
+
+	add_controls: function() {
+		var btns = [
+			{ 'text': 'Start', 'id': 'startstop','evnt': this.ctrl_startstop },
+		];
+		for (var i=0; i<btns.length; i++) {
+			var ctrls = document.getElementById('ctrls');
+			var btn = document.createElement('button')
+			btn.setAttribute('id', btns[i]['id']);
+			btn.addEventListener('click', btns[i]['evnt'], false);
+			btn.innerHTML = btns[i]['text']
+			ctrls.appendChild(btn);
+		}
+	},
+
+	ctrl_startstop: function(e) {
+		console.log(e)
+		e.preventDefault()
+		gol.running = !!!gol.running;
+		var btn = document.getElementById('startstop')
+		var val = (gol.running) ? 'Stop':'Start';
+		console.log(val)
+		btn.innerHTML = val;
+		gol.tick();
+	},
+
+	init: function(autorun) {
+		this.live_blocks = [
+			'12,12','12,13','13,12','14,12','15,13',
+			'20,20','21,21','22,22','20,21','20,23',
+			'62,62','62,63','63,62','64,62','65,63',
+			'70,70','71,71','72,72','70,71','70,73'
+		];
+		this.init_board();
+		this.draw_grid();
+		this.add_controls();
+	}
+
+}
+</script>
+</head>
+<body onload="gol.init()">
+
+
+<canvas id="canvas" width="600" height="600" style="border:1px solid red"></canvas>
+<div id="ctrls"></div>
+
+</body>
+</html>
